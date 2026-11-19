@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verano Heat — an open-world crime game</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0e1420; font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif; }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  /* ---------- HUD ---------- */
+  #hud { position: fixed; inset: 0; pointer-events: none; display: none; color: #fff; }
+  #hud.on { display: block; }
+  #hud-top-right { position: absolute; top: 14px; right: 18px; text-align: right; }
+  #wanted { font-size: 26px; letter-spacing: 3px; line-height: 1; color: #ffd23e; text-shadow: 0 0 6px rgba(0,0,0,.65), 0 2px 2px rgba(0,0,0,.5); }
+  #wanted .off { color: rgba(255,255,255,.28); text-shadow: 0 1px 2px rgba(0,0,0,.5); }
+  #cash { margin-top: 6px; font-size: 24px; font-weight: 700; color: #7be495; text-shadow: 0 2px 3px rgba(0,0,0,.6); }
+  #clock { font-size: 13px; font-weight: 600; color: #eaf6ff; opacity: .9; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+  #hud-bottom-left { position: absolute; left: 18px; bottom: 16px; width: 230px; }
+  #health-wrap { height: 14px; background: rgba(10,16,24,.55); border: 2px solid rgba(255,255,255,.75); border-radius: 3px; overflow: hidden; }
+  #health { height: 100%; width: 100%; background: linear-gradient(90deg, #e8433c, #ff7a45); transition: width .15s; }
+  #armor-row { margin-top: 5px; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-shadow: 0 1px 2px rgba(0,0,0,.7); }
+  #weapon { margin-top: 2px; font-size: 13px; font-weight: 700; letter-spacing: 1px; color: #ffe9a8; text-shadow: 0 1px 2px rgba(0,0,0,.7); }
+  #minimap-wrap { position: absolute; right: 18px; bottom: 16px; width: 184px; height: 184px; border: 3px solid rgba(255,255,255,.8); border-radius: 50%; overflow: hidden; background: #20303c; box-shadow: 0 4px 14px rgba(0,0,0,.45); }
+  #minimap { width: 100%; height: 100%; display: block; }
+  #objective { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); max-width: 620px; text-align: center; }
+  #objective-title { display: inline-block; font-size: 15px; font-weight: 800; letter-spacing: 2px; color: #ffd23e; background: rgba(10,16,24,.55); padding: 5px 14px 4px; border-radius: 3px; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+  #objective-text { margin-top: 6px; font-size: 15px; font-weight: 600; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.85), 0 0 8px rgba(0,0,0,.5); }
+  #objective-dist { color: #ffd23e; font-weight: 800; }
+  #toast { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); font-size: 19px; font-weight: 800; letter-spacing: 1px; color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,.8); opacity: 0; transition: opacity .3s; text-align: center; white-space: nowrap; }
+  #prompt { position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%); font-size: 15px; font-weight: 700; color: #fff; background: rgba(10,16,24,.6); padding: 6px 14px; border-radius: 3px; display: none; }
+  #prompt b { color: #ffd23e; border: 1px solid #ffd23e; border-radius: 3px; padding: 0 6px; margin-right: 6px; }
+  #crosshair { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: rgba(255,255,255,.9); box-shadow: 0 0 4px rgba(0,0,0,.8); display: none; }
+  #speedo { position: absolute; right: 224px; bottom: 22px; font-size: 15px; font-weight: 800; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.7); display: none; }
+  #busted-bar-wrap { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); width: 300px; display: none; text-align: center; }
+  #busted-label { font-size: 15px; font-weight: 800; letter-spacing: 3px; color: #ff5a4e; text-shadow: 0 1px 3px rgba(0,0,0,.8); margin-bottom: 5px; }
+  #busted-bar { height: 10px; background: rgba(10,16,24,.6); border: 2px solid rgba(255,255,255,.7); border-radius: 3px; overflow: hidden; }
+  #busted-fill { height: 100%; width: 0%; background: #ff5a4e; }
+
+  /* ---------- Screens ---------- */
+  .screen { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; text-align: center; color: #fff; }
+  .screen.on { display: flex; }
+  #title-screen { background: linear-gradient(180deg, rgba(255,138,76,.24), rgba(14,20,32,.38) 55%, rgba(14,20,32,.72)); }
+  #game-logo { font-size: 92px; font-weight: 900; font-style: italic; letter-spacing: 1px; line-height: .95; color: #fff; text-shadow: 0 4px 0 #e2543e, 0 8px 22px rgba(0,0,0,.55); }
+  #game-logo .heat { color: #ffd23e; }
+  #tagline { margin-top: 10px; font-size: 17px; font-weight: 600; letter-spacing: 4px; color: #ffe9c9; text-shadow: 0 2px 6px rgba(0,0,0,.7); }
+  .menu { margin-top: 34px; display: flex; flex-direction: column; gap: 10px; pointer-events: auto; }
+  .menu button { font: inherit; font-size: 19px; font-weight: 800; letter-spacing: 2px; color: #12202e; background: linear-gradient(180deg, #ffd23e, #ffb52e); border: 0; border-radius: 4px; padding: 11px 44px; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
+  .menu button:hover { filter: brightness(1.08); }
+  .menu button.ghost { background: rgba(14,22,34,.72); color: #eaf6ff; box-shadow: inset 0 0 0 2px rgba(255,255,255,.5); }
+  #controls-help { margin-top: 30px; font-size: 13.5px; line-height: 1.75; color: #eaf6ff; text-shadow: 0 1px 3px rgba(0,0,0,.85); background: rgba(10,16,24,.45); padding: 10px 22px; border-radius: 6px; }
+  #controls-help b { color: #ffd23e; }
+  #pause-screen, #wasted-screen, #busted-screen { background: rgba(10,14,22,.62); }
+  .big-word { font-size: 84px; font-weight: 900; font-style: italic; letter-spacing: 3px; text-shadow: 0 4px 0 rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.6); }
+  #wasted-screen .big-word { color: #e8e8e8; }
+  #busted-screen .big-word { color: #5aa2ff; }
+  .screen .sub { margin-top: 8px; font-size: 16px; font-weight: 600; color: #dfeaf2; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+  #mission-banner { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; pointer-events: none; color: #fff; }
+  #mission-banner.on { display: flex; }
+  #mission-banner .mb-title { font-size: 44px; font-weight: 900; font-style: italic; letter-spacing: 2px; color: #ffd23e; text-shadow: 0 3px 0 rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.6); }
+  #mission-banner .mb-sub { font-size: 17px; font-weight: 700; margin-top: 6px; text-shadow: 0 2px 5px rgba(0,0,0,.8); }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
+</head>
+<body>
+<canvas id="scene" aria-label="Verano Heat: an open-world crime game set in the coastal city of Verano Bay"></canvas>
+<p id="status" role="status" aria-live="polite"></p>
+
+<div id="hud">
+  <div id="objective"><span id="objective-title"></span><div id="objective-text"></div></div>
+  <div id="hud-top-right">
+    <div id="wanted"></div>
+    <div id="cash">$0</div>
+    <div id="clock"></div>
+  </div>
+  <div id="hud-bottom-left">
+    <div id="health-wrap"><div id="health"></div></div>
+    <div id="armor-row">VERANO BAY</div>
+    <div id="weapon"></div>
+  </div>
+  <div id="speedo"></div>
+  <div id="minimap-wrap"><canvas id="minimap" width="184" height="184"></canvas></div>
+  <div id="toast"></div>
+  <div id="prompt"></div>
+  <div id="crosshair"></div>
+  <div id="busted-bar-wrap"><div id="busted-label">BUSTED</div><div id="busted-bar"><div id="busted-fill"></div></div></div>
+</div>
+
+<div id="mission-banner"><div class="mb-title"></div><div class="mb-sub"></div></div>
+
+<div id="title-screen" class="screen">
+  <div id="game-logo">VERANO <span class="heat">HEAT</span></div>
+  <div id="tagline">ONE CITY · ONE CREW · NO BRAKES</div>
+  <div class="menu">
+    <button id="btn-start" type="button">START STORY</button>
+    <button id="btn-continue" class="ghost" type="button" style="display:none">CONTINUE</button>
+    <button id="btn-free" class="ghost" type="button">FREE ROAM</button>
+  </div>
+  <div id="controls-help">
+    <b>W A S D</b> move / drive &nbsp;·&nbsp; <b>Shift</b> sprint &nbsp;·&nbsp; <b>F</b> enter / exit car<br>
+    <b>Mouse</b> look (click the game first) &nbsp;·&nbsp; <b>Click</b> punch / shoot &nbsp;·&nbsp; <b>1 / 2</b> fists / pistol<br>
+    <b>Space</b> handbrake &nbsp;·&nbsp; <b>P</b> pause &nbsp;·&nbsp; <b>M</b> mute
+  </div>
+</div>
+
+<div id="pause-screen" class="screen">
+  <div class="big-word">PAUSED</div>
+  <div class="sub">Verano Bay waits for no one. Well — just this once.</div>
+  <div class="menu"><button id="btn-resume" type="button">RESUME</button></div>
+</div>
+
+<div id="wasted-screen" class="screen">
+  <div class="big-word">WASTED</div>
+  <div class="sub" id="wasted-sub">You wake up at Verano General, lighter in the pocket.</div>
+  <div class="menu"><button id="btn-respawn" type="button">RESPAWN</button></div>
+</div>
+
+<div id="busted-screen" class="screen">
+  <div class="big-word">BUSTED</div>
+  <div class="sub" id="busted-sub">VBPD walks you to the curb. Bail is not cheap.</div>
+  <div class="menu"><button id="btn-bail" type="button">PAY BAIL</button></div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
